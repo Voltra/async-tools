@@ -79,17 +79,17 @@ void print_it(const T& t){
 
 int main(){
 	const/*expr*/ char* PATH = "kittens.txt";
-	
+
 	async::task<string> task{bind(
 		streamFile<>,
 		PATH, _1, _2
 	)};
-	
+
 	task->stream()
 	->filter(is_not_whitespace)
-    ->forEach(print_it<>);
-    
-    task->run()->wait();
+	->forEach(print_it<>);
+
+	task->run()->wait();
 }
 ```
 
