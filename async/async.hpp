@@ -1,5 +1,8 @@
 #pragma once
 
+/**
+ * @namespace async
+ */
 namespace async{}
 
 #include <async/stream/stream.hpp>

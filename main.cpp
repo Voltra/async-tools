@@ -4,14 +4,6 @@
 #include <functional>
 #include "utils.h"
 
-namespace console{
-	namespace wrap = surrounded;
-
-	namespace w{
-		namespace wrap = surrounded;
-	}
-}
-namespace cli = console;
 using namespace std::placeholders;
 
 template <class Str=std::string>
@@ -37,9 +29,7 @@ void testLoremIpsum(){
 	});*/
 	async::task<std::string> task(std::bind(
 		streamFile<>,
-		"../test.txt",
-		_1,
-		_2
+		"../test.txt", _1, _2
 	));
 
 	task->stream()
@@ -52,9 +42,7 @@ void testLoremIpsum(){
 void testNumber(){
 	async::task<std::string> task(std::bind(
 		streamFile<>,
-		"../num.txt",
-		_1,
-		_2
+		"../num.txt", _1, _2
 	));
 
 	task->stream()

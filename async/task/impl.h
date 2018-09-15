@@ -1,6 +1,6 @@
 #pragma once
-#include "decl.h"
-#include <async/stream/impl.h>
+#include <async/task/decl.h>
+#include <async/stream/stream.hpp>
 
 #ifdef ASYNC_TASK_DEBUG
 #include <iostream>
@@ -16,87 +16,89 @@ TPL
 self::constructor(self_t::handler_t handler) : handler{handler}{
 }
 
-/**
- * Starts the execution of this task
- * @tparam T - The type of data that flows in the stream associated to this task
- * @return a reference to this task
- */
 TPL
 self& self::run(){
 	if(this->is_running())
 		return *this;
 
-	this->thread = self_t::thread_ptr_t{new self_t::thread_t([&]{
+	this->runner = this->make_runner([&]{
 		try{
 			self& task = *this;
 			self_t::stream_t& stream = *(this->stream_ptr);
 			this->handler(task, stream);
 		}catch(const self_t::stopping_task& e){
+			this->stop_internals();
 			#ifdef ASYNC_TASK_DEBUG
 			std::cerr << e.what() << '\n';
 			#endif
+		}catch(...){
+			this->stop_internals();
+			throw; //aka rethrow the last exception thrown
 		}
-	})};
-	this->set_running(true);
+	});
 
+	this->set_running(true);
 	return *this;
 }
 
-/**
- * Stops this task mid-execution without a specific error message
- * @tparam T - The type of data that flows in the stream associated to this task
- * @return a reference to this task
- */
 TPL
-self& self::stop() const{
+self& self::stop(){
+	if(!this->is_running())
+		return *this;
+
+	this->stop_internals();
 	throw stopping_task{};
 }
 
-/**
- * Stops this task mid-execution with the specified error message
- * @tparam T - The type of data that flows in this stream
- * @param cstr - The error message used to stop the stream associated to this task
- * @return a reference to this task
- * @throws async::task::stopping_task
- */
 TPL
-self& self::stop(const char* cstr) const{
+self& self::stop(const char* cstr){
+	if(!this->is_running())
+		return *this;
+
+	this->stop_internals();
 	throw stopping_task{cstr};
 }
 
-/**
- * Waits for the completion of this task
- * @tparam T - The type of data that flows in the stream associated to this task
- * @return a reference to this task
- */
+TPL
+void self::stop_internals(){
+	this->set_running(false);
+	this->stream_ptr->close();
+}
+
 TPL
 self& self::wait(){
 	if(!this->is_running())
 		return *this;
 
-	if(this->thread)
-		this->thread->join();
+	if(this->runner)
+		this->runner->get();
 
 	return *this;
 }
 
-/**
- * An exception class used to stop a task
- * @tparam T - The type of data that flows in the stream associated to this stream
- */
 TPL
-class self::stopping_task final : public std::exception{
-	protected:
-		const char* _what;
-	public:
-		constexpr stopping_task() : _what{"stopping task"} {
-		}
+template <class F>
+self_t::runner_ptr_t self::make_runner(F handler){
+	auto handled = std::async(
+		std::launch::async,
+		handler
+	);
 
-		constexpr stopping_task(const char* cstr) : _what{cstr} {
-		}
+	return self_t::runner_ptr_t{
+		new self_t::runner_t(std::move(handled))
+	};
+}
 
-		const char* what() const noexcept override{ return this->_what; }
-};
+TPL
+constexpr self::stopping_task::stopping_task() : _what{"stopping task"} {
+}
+
+TPL
+constexpr self::stopping_task::stopping_task(const char* cstr) : _what{cstr} {
+}
+
+TPL
+const char* self::stopping_task::what() const noexcept { return this->_what; }
 
 #undef constructor
 #undef self

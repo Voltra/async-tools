@@ -99,3 +99,13 @@ namespace console{
 		}
 	}
 };
+
+namespace console{
+	namespace wrap = surrounded;
+
+	namespace w{
+		namespace wrap = surrounded;
+	}
+}
+
+namespace cli = console;
